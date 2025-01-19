@@ -1,36 +1,43 @@
 import axios from 'axios';
-axios.defaults.baseURL ="http://localhost:5179";
 
-axios.interceptors.response.use(
-  response => response, 
-  error => {
-    console.error('My Response error:', error.response.status, error.response.data);
-    return Promise.reject(error); 
+const API_URL = "http://localhost:5179/items"; // הכתובת החדשה של ה-API עם הנתיב הנכון
+
+const service = {
+  async getTasks() {
+    try {
+      const response = await axios.get(API_URL);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      return [];
     }
-);
-
-
-export default {
-  getTasks: async () => {
-    const result = await axios.get(`/todos`)    
-    return result.data;
   },
 
-  addTask: async(id,name)=>{
-    var add={id:id,name:name,isComplete:false};
-    await axios.post(`/todo`,add)
-    return {add};
+  async addTask(newTask) {
+    try {
+      const response = await axios.post(API_URL, { name: newTask, isComplete: false });
+      return response.data;
+    } catch (error) {
+      console.error("Error adding task:", error);
+    }
   },
 
-  setCompleted: async(id, isComplete)=>{
-    console.log('setCompleted', {id, isComplete});
-    var new_={id:id,name:"",isComplete:isComplete};
-    await axios.put(`/todo/${id}`,new_);
-    return {new_};
+  async setCompleted(id, isComplete) {
+    try {
+      const response = await axios.put(`${API_URL}/${id}`, { isComplete });
+      return response.data;
+    } catch (error) {
+      console.error("Error updating task completion:", error);
+    }
   },
 
-  deleteTask:async(id)=>{
-    console.log('deleteTask')
-    await axios.delete(`/todo/${id}`);
+  async deleteTask(id) {
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
   }
 };
+
+export default service;

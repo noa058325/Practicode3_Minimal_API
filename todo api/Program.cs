@@ -1,46 +1,69 @@
+using Microsoft.EntityFrameworkCore;
 using TodoApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("MyPlicy",
-        builder =>
-        {
-            builder.AllowAnyOrigin()
-                   .AllowAnyHeader()
-                   .AllowAnyMethod();
-        });
-});
+// הוספת DbContext
+builder.Services.AddDbContext<ToDoDbContext>(options =>
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("tododb"),
+        new MySqlServerVersion(new Version(8, 0, 40))
+    ));
 
-// builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "ToDos", Version = "v1" });
-});
-
-builder.Services.AddDbContext<ToDoDbContext>(
-);
-
+// הוספת שירות ה-ToDoService
 builder.Services.AddScoped<ToDoService>();
 
-var app = builder.Build();
-app.UseCors(options => options.AllowAnyMethod().AllowAnyOrigin().AllowAnyHeader());
-
-app.UseSwagger();
-    app.UseSwaggerUI(c =>
+// הוספת CORS
+builder.Services.AddCors(options =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
-    c.RoutePrefix =string.Empty;
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
-app.MapGet("/", () => "Hello World!");
+// הוספת Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-app.MapGet("/todos", (ToDoService s) =>s.Get() );
-app.MapPost("/todo", (Item i,ToDoService s) => s.Post(i));
-app.MapPut("/todo/{id}", (int id,Item i,ToDoService s) => s.Put(id,i));
-app.MapDelete("/todo/{id}", (int id,ToDoService s) => s.Delete(id));
+var app = builder.Build();
+
+// השתמש ב-CORS
+app.UseCors("AllowAll");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// מיפוי לשורש
+app.MapGet("/", () => Results.Redirect("/swagger"));
+
+// Map לשליפת כל המשימות
+app.MapGet("/items", async (ToDoService service) =>
+{
+    return await service.Get();
+});
+
+// Map להוספת משימה חדשה
+app.MapPost("/items", async (ToDoService service, Item newItem) =>
+{
+    return await service.Post(newItem);
+});
+
+// Map לעדכון משימה קיימת
+app.MapPut("/items/{id}", async (ToDoService service, int id, Item updatedItem) =>
+{
+    return await service.Put(id, updatedItem);
+});
+
+// Map למחיקת משימה
+app.MapDelete("/items/{id}", async (ToDoService service, int id) =>
+{
+    return await service.Delete(id);
+});
 
 app.Run();
-
